@@ -4,3 +4,4 @@ packrat/lib*/
 
 # qPCR worksheets
 data/raw/qpcr/*/worksheets/
+data/raw/qpcr/noro\ gII/NoroStandardDilns.xlsx
