@@ -16,7 +16,7 @@
 
 # Dependencies ------------------------------------------------------------
 
-required_packages <- c("here", "lubridate", "readxl", "tidyverse")
+required_packages <- c("dplyr", "here", "lubridate", "purrr", "readxl", "tidyr")
 lapply(required_packages, library, character.only = T)
 
 
@@ -67,10 +67,6 @@ lab <- lab %>% rename(conc_100ml_cens = conc, hi95 = hi, lo95 = lo)
 # Log transform data and define censoring indicator variables
 lab <- 
   lab %>%
-  mutate(l10_turb = log10(turb)) %>%
-  select(-turb)
-lab <- 
-  lab %>%
   mutate(l10_turb = log10(turb),
          l10_100ml_cens = log10(conc_100ml_cens),
          l10_100ml_hi95 = log10(hi95),
@@ -83,3 +79,6 @@ lab <-
 
 # Remove observations where no samples was taken
 lab <- lab %>% filter(!grepl("NO SAMPLE", sample_name))
+
+# Write formatted data
+saveRDS(lab, here::here("data", "processed", "lab.rds"))
