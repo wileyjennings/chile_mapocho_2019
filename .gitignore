@@ -1,6 +1,7 @@
 .Rproj.user
 packrat/lib*/
 .DS_Store
+.Rhistory
 
 # qPCR worksheets
 data/raw/qpcr/*/worksheets/
