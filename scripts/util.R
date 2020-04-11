@@ -1,12 +1,14 @@
 
 # Requirements ------------------------------------------------------------
 
-required_packages <- c("dplyr", "here", "purrr", "readxl", "stringr")
+required_packages <- c("broom", "dplyr", "glue", "here", "purrr", "readxl", 
+                       "stringr", "tidyr")
 lapply(required_packages, library, character.only = T)
 
 
-# Reads qPCR data files in default format produced by Step One Plus qPCR platform.
+# Functions ---------------------------------------------------------------
 
+# Reads qPCR data files in default format produced by Step One Plus qPCR platform.
 # Given:
 # - target: the qPCR target. Can be "HF183", "crAssphage", or "noroGII"
 # --  a string
@@ -14,7 +16,6 @@ lapply(required_packages, library, character.only = T)
 # - A list of tibbles, where each element is the results from one instrument
 # - run. The plate name and date have been appended to each tibble element to
 # - distinguish them.
-
 # Requirements
 # - qpcr .xls files which are titled as:
 # -- Begins with target name.
@@ -50,4 +51,82 @@ read_s1plus <- function(target_) {
   tib_list
 }
 
+# Tidy up model results.
+# Given:
+# - .data: a tibble containing .model_col, a (list) col of (linear) models.
+# Returns:
+# - .data with three new list cols with model summaries and fitted values.
+
+tidy_model <- function(.data, .model_col) {
+  .model_col <- enquo(.model_col)
+  .data %>%
+    mutate(tidied = map(!!.model_col, tidy),
+           glanced = map(!!.model_col, glance),
+           augmented = map(!!.model_col, augment))
+}
+
+# Estimate qPCR standard curves.
+# Given:
+# - .data: a data frame of qPCR standard measurements containing cols:
+# -- `target`, `ct`, `copy_num`, and `plate_name`.
+# Returns:
+# - A tibble containing a list column of random effects models, one model
+# -- for each qPCR target, a list col of random effects, and list cols of 
+# -- nicely tidied model results.
+
+estim_std_mix <- function(.data) {
+  if(!all(c("target", "ct", "copy_num", "plate_name") %in% names(.data))) {
+    stop("`.data` must contain `target`, `ct`, `copy_num`, and `plate_name` 
+         columns")
+  }
+  
+  # Warn if few clusters for estimating random effects
+  few_clusters <- 
+    .data %>% 
+    group_by(target) %>% 
+    distinct(plate_name) %>% 
+    summarize(n = n()) %>% 
+    filter(n < 6) 
+  cluster_num <- few_clusters %>% pull(n)
+  cluster_target <- few_clusters %>% pull(target)
+  if (length(cluster_target) > 0) {
+    warning(glue(
+      "{cluster_target} was run on only {cluster_num} plates. \nAre you sure you want to use a mixed model approach?\n"
+    ))
+  } 
+  
+  # Estimate random effects model
+  model <- 
+    .data %>%
+    nest(data = -target) %>%
+    mutate(mixed = map(data, ~lmer(ct ~ log10(copy_num) + (1|plate_name), 
+                                   data = .x)),
+           re = map(mixed, ranef),
+           re = map(re, function(x) as_tibble(as.list(x))))
+  
+  # Return nicely formatted mixed effects model results
+  tidy_model(model, mixed)
+}
+
+# Summarize standard equation parameters.
+# Given:
+# - A tibble containing a column of tidied models (e.g., from `tidy_mode()`)
+# Returns:
+# - A tibble containing important standard equation parameters.
+summarize_std <- function(.data) {
+  if(!("tidied" %in% names(.data))) {
+    stop("`.data` must contain `tidied` column")
+  }
+  
+  std_summary <- 
+    .data %>%
+    unnest(tidied) %>%
+    pivot_wider(., id_cols = target, names_from = term, 
+                values_from = c(estimate))
+  names(std_summary) <- c("target", "intercept", "slope_l10cn","intercept_sd", 
+                          "resid_sd")
+  # Return summary with qPCR efficiency col
+  std_summary %>%
+    mutate(effic = 10^(-1/slope_l10cn) - 1)
+}
 
