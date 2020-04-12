@@ -21,12 +21,12 @@ lapply(required_packages, library, character.only = T)
 # -- Begins with target name.
 # -- Contains date formatted as YYYYMMDD.
 
-read_s1plus <- function(target_) {
-  if (target_ == "hf183") {
+read_s1plus <- function(.target) {
+  if (.target == "hf183") {
     path_target <- "HF183"
-  } else if (target_ == "crass") {
+  } else if (.target == "crass") {
     path_target <- "crAssphage"
-  } else if (target_ == "noro") {
+  } else if (.target == "noro") {
     path_target <- "noroGII"
   } else {stop("Target must be 'hf183', 'crass', or 'noro'")}
   file_name <- paste0(path_target, "*.xls")
@@ -37,16 +37,31 @@ read_s1plus <- function(target_) {
   # Read results sheets from qPCR workbook files
   tib_list <- map(paths, read_excel, sheet = "Results", skip = 7)
   
+  # Check that `Target Name` is expected
+  get_targets <- function(df) {
+    df %>%
+      distinct(`Target Name`) %>%
+      filter(!is.na(`Target Name`)) %>%
+      pull()
+  }
+  target_names <- map(tib_list, get_targets) %>% unlist()
+  if(!all(target_names %in% c("crAss 064", "HF183", "HNV GII_ORF1/ORF2_SB"))) {
+    stop("`Unexpected `Target Name`!")
+  }
+  
   # Add date to each plate run
   dates <- str_extract(paths, "2019(\\d)+")
   tib_list <- map2(.x = tib_list, .y = dates, ~ mutate(.x, date = .y)) 
   
   # Add plate name and target to each plate run 
-  start_ <- ifelse(target_ == "hf183", 99, 104)
+  start_ <- ifelse(.target == "hf183", 99, 104)
   plate_names <- mapply(FUN = substr, x = paths, start = start_, 
                         stop = nchar(paths)-4)
   tib_list <- map2(.x = tib_list, .y = plate_names, ~ mutate(.x, plate_name = .y)) 
-  tib_list <- map(.x = tib_list, ~ mutate(.x, target = target_)) 
+  tib_list <- map(.x = tib_list, 
+                  ~ mutate(.x, target = ifelse(
+                    `Target Name` == "crAss 064", "crass", ifelse(
+                      `Target Name` == "HF183", "hf183", "noro")))) 
   
   tib_list
 }
@@ -128,5 +143,34 @@ summarize_std <- function(.data) {
   # Return summary with qPCR efficiency col
   std_summary %>%
     mutate(effic = 10^(-1/slope_l10cn) - 1)
+}
+
+# Estimate lower limit of quantification using logistic regression to estimate
+# the standard concentration that amplified with probability `.prob`
+# Given:
+# - .data: data frame of standards
+# - .target: the qPCR target, a string
+# - .prob: numeric [0, 1], the lloq corresponds to the lowest copy num with at 
+# -- least .prob probability of amplifying.
+# Returns:
+# - Numeric LLOQ, in units of copy number
+lloq_logit <- function(.data, .target, .prob) {
+  # Add presence absence col
+  .data <- 
+    .data %>%
+    filter(target == .target) %>%
+    mutate(amp_bin = ifelse(is.na(ct), 0, 1),
+           l10_cn = log10(copy_num)) 
+  
+  logist_mod <- glm(amp_bin ~ l10_cn, data = .data, family = "binomial")
+  
+  # Predict detection probability on grid of copy numbers
+  grid <- tibble(cn = c(1:1000), l10_cn = log10(cn))
+  grid$pred <- predict(logist_mod, newdata = grid, type = "response")
+  
+  # Return lloq in units of copy number
+  grid %>%
+    filter(abs(.prob - pred) == min(abs(.prob - pred))) %>%
+    pull(cn)
 }
 
