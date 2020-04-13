@@ -6,3 +6,9 @@ packrat/lib*/
 # qPCR worksheets
 data/raw/qpcr/*/worksheets/
 data/raw/qpcr/noro*/NoroStandardDilns.xlsx
+
+figures/*
+data/processed/*
+
+# Don't ignore:
+data/processed/.gitignore
