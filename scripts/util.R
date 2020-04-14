@@ -54,7 +54,7 @@ read_s1plus <- function(.target) {
   tib_list <- map2(.x = tib_list, .y = dates, ~ mutate(.x, date = .y)) 
   
   # Add plate name and target to each plate run 
-  start_ <- ifelse(.target == "hf183", 99, 104)
+  start_ <- ifelse(.target == "hf183", 113, 118)
   plate_names <- mapply(FUN = substr, x = paths, start = start_, 
                         stop = nchar(paths)-4)
   tib_list <- map2(.x = tib_list, .y = plate_names, ~ mutate(.x, plate_name = .y)) 
@@ -66,7 +66,7 @@ read_s1plus <- function(.target) {
   tib_list
 }
 
-# Tidy up model results.
+# Helper to tidy up model results.
 # Given:
 # - .data: a tibble containing .model_col, a (list) col of (linear) models.
 # Returns:
@@ -74,8 +74,10 @@ read_s1plus <- function(.target) {
 
 tidy_model <- function(.data, .model_col) {
   .model_col <- enquo(.model_col)
+  # Mixed model throws annoying class coercion warning. Could be resolved
+  # by using broom.mixed functions.
   .data %>%
-    mutate(tidied = map(!!.model_col, tidy),
+    mutate(tidied = suppressWarnings(map(!!.model_col, tidy)),
            glanced = map(!!.model_col, glance),
            augmented = map(!!.model_col, augment))
 }
@@ -111,14 +113,15 @@ estim_std_mix <- function(.data) {
   } 
   
   # Estimate random effects model
-  model <- 
+  model <-
     .data %>%
     nest(data = -target) %>%
-    mutate(mixed = map(data, ~lmer(ct ~ log10(copy_num) + (1|plate_name), 
-                                   data = .x)),
-           re = map(mixed, ranef),
-           re = map(re, function(x) as_tibble(as.list(x))))
-  
+    mutate(
+      mixed = map(
+        data, ~lmer(ct ~ log10(copy_num) + (1|plate_name), data = .x)),
+      re = map(mixed, ranef),
+      re = map(re, function(x) as_tibble(as.list(x))))
+
   # Return nicely formatted mixed effects model results
   tidy_model(model, mixed)
 }
@@ -153,7 +156,7 @@ summarize_std <- function(.data) {
 # - .prob: numeric [0, 1], the lloq corresponds to the lowest copy num with at 
 # -- least .prob probability of amplifying.
 # Returns:
-# - Numeric LLOQ, in units of copy number
+# - Numeric LLOQ, in units of log10(copy number)
 lloq_logit <- function(.data, .target, .prob) {
   # Add presence absence col
   .data <- 
@@ -171,6 +174,24 @@ lloq_logit <- function(.data, .target, .prob) {
   # Return lloq in units of copy number
   grid %>%
     filter(abs(.prob - pred) == min(abs(.prob - pred))) %>%
-    pull(cn)
+    pull(l10_cn)
 }
+
+
+# Write a .tif image to file.
+# Given:
+# - .fig: A plot object
+# - .file_name: the name of the file (not path); a string.
+# Returns:
+# - Nothing.
+# Side effect:
+# - Writes a high res .tif file to figures/
+
+write_tif_wide <- function(.fig, .file_name) {
+  tiff(here::here("figures", .file_name), width = 6, height = 4, 
+       units = "in", res = 600)
+  print(.fig)
+  dev.off()
+}
+
 
