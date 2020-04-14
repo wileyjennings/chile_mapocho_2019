@@ -1,0 +1,5 @@
+# Ignore
+*
+
+# Don't ignore
+!.gitignore
