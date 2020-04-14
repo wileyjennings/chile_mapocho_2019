@@ -35,7 +35,7 @@ qpcr <-
 names(qpcr) <- c("name", "task", "ct", "ct_sd", "copy_num", "copy_num_sd", 
                  "ct_threshold", "flag_sd_high", "flag_no_amp", "flag_exp_fail", 
                  "date", "plate_name", "target")
-qpcr$ct <- as.numeric(qpcr$ct)
+qpcr$ct <- suppressWarnings(as.numeric(qpcr$ct))
 qpcr <- qpcr %>% filter(!is.na(task))  # remove rows without data
 qpcr <-  # give name to standards
   qpcr %>%
@@ -63,11 +63,13 @@ qpcr$name <- gsub(" :10", "", qpcr$name)
 
 # Discard three samples that were assayed twice for HF183 (s43, s67, s68).
 # These samples run on 20191004 should be discarded due to high sd.
+# Also discard sewage HF183 since it was run again on the same plate as 
+# crAssphage HF183, to increase comparability.
 qpcr <- 
   qpcr %>%
   filter(!(target == "hf183" & 
              date == "20191004" & 
-             name %in% c("s43", "s67", "s68")))
+             name %in% c("s43", "s67", "s68", "Sewage")))
 
 # Discard samples from CDC UF decay study.
 qpcr <- qpcr[-grep(x = qpcr$name, pattern = "Ext ID"), ]
@@ -88,5 +90,25 @@ qpcr <- qpcr %>% filter(!(name == "sewage" & target == "noro"))
 # sewage estimated previously on another plate.
 qpcr <- qpcr %>% filter(!grepl("sewage_20191213", plate_name))
 
+# Split standards from unknowns for writing to separate .rds file. 
+# Necessary before estimating summary ct statistics of unknowns.
+standards <- qpcr %>% filter(task == "STANDARD")
+samples <- qpcr %>% filter(task != "STANDARD")
+
+# Compute mean replicate ct values and compute SDs of unknowns. 
+# Discard SDs computed by Step One Plus software.
+# Discard replicates now that computed summary values using `distinct()`.
+samples <- 
+  samples %>%
+  group_by(plate_name, target, name, diln) %>%
+  summarize(ct_mean = mean(ct, na.rm = T),
+            ct_sd = sd(ct, na.rm = T)) %>%
+  left_join(x = samples %>% 
+              select(-ct_sd) %>% 
+              distinct(plate_name, target, name, diln, .keep_all = T), 
+            y = ., 
+            by = c("plate_name", "target", "name", "diln")) 
+
 # Write data
-saveRDS(qpcr, here::here("data", "processed", "qpcr.rds"))
+saveRDS(standards, here::here("data", "processed", "standards.rds"))
+saveRDS(samples, here::here("data", "processed", "samples.rds"))
