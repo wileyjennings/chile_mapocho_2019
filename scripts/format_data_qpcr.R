@@ -90,25 +90,5 @@ qpcr <- qpcr %>% filter(!(name == "sewage" & target == "noro"))
 # sewage estimated previously on another plate.
 qpcr <- qpcr %>% filter(!grepl("sewage_20191213", plate_name))
 
-# Split standards from unknowns for writing to separate .rds file. 
-# Necessary before estimating summary ct statistics of unknowns.
-standards <- qpcr %>% filter(task == "STANDARD")
-samples <- qpcr %>% filter(task != "STANDARD")
-
-# Compute mean replicate ct values and compute SDs of unknowns. 
-# Discard SDs computed by Step One Plus software.
-# Discard replicates now that computed summary values using `distinct()`.
-samples <- 
-  samples %>%
-  group_by(plate_name, target, name, diln) %>%
-  summarize(ct_mean = mean(ct, na.rm = T),
-            ct_sd = sd(ct, na.rm = T)) %>%
-  left_join(x = samples %>% 
-              select(-ct_sd) %>% 
-              distinct(plate_name, target, name, diln, .keep_all = T), 
-            y = ., 
-            by = c("plate_name", "target", "name", "diln")) 
-
 # Write data
-saveRDS(standards, here::here("data", "processed", "standards.rds"))
-saveRDS(samples, here::here("data", "processed", "samples.rds"))
+saveRDS(qpcr, here::here("data", "processed", "qpcr.rds"))
