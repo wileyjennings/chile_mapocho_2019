@@ -17,31 +17,21 @@
 required_packages <- c("dplyr", "ggplot2", "here", "lme4", "readr")
 lapply(required_packages, library, character.only = T)
 source(here::here("scripts", "util.R"))
-qpcr <- readRDS(here::here("data", "processed", "qpcr.rds"))
+standards <- readRDS(here::here("data", "processed", "standards.rds"))
+samples <- readRDS(here::here("data", "processed", "samples.rds"))
 
 
 # Estimate standard equations ---------------------------------------------
-
-# Split out standards.
-standards <- qpcr %>% filter(task == "STANDARD")
 
 # Estimate mixed standard model (assuming random intercept).
 standards_mixed <- estim_std_mix(standards)
 standards_mixed_summary <- summarize_std(standards_mixed)
 
-# This should be moved to script for estimating concentrations
-# standards_mixed_raneff <-  # Pull out random effects
-#   standards_mixed %>%
-#   unnest(re) %>%
-#   select(target, plate_name = grp, intercept_dif = condval) %>%
-#   left_join(., standards_mixed_summary, by = "target")
-
 
 # Estimate LOD and LOQ ----------------------------------------------------
 
 # LOD: the theoretical LOD from Bustin 2009: 3 cp/rxn, per poisson sub-sampling
-lod <- tibble(target = c("crass", "hf183", "noro"), 
-              lod_l10 = log10(3))
+lod <- tibble(target = c("crass", "hf183", "noro"), lod_l10 = log10(3))
 
 # LLOQ: use logistic regression to estimate concentration at which 50% of samples
 # show amplification.
@@ -69,5 +59,8 @@ standards_plot <-
   theme_bw()
 
 # Write standards summary table and plot.
+saveRDS(standards_mixed_summary, 
+        here::here("data", "processed", "standards_mixed_summary.rds"))
+saveRDS(standards_mixed, here::here("data", "processed", "standards_mixed.rds"))
 write_csv(standards_mixed_summary, here::here("figures", "standards_summary.csv"))
 write_tif_wide(standards_plot, "standards.tif")
