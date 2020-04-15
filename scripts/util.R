@@ -177,6 +177,44 @@ lloq_logit <- function(.data, .target, .prob) {
     pull(l10_cn)
 }
 
+# Calculate microbial concentration per 100 ml water from qPCR rxn 
+# concentrations
+# Given:
+# - .data: data frame (`water`) containing qpcr rxn concentrations and lab processing
+# -- values ...
+# - .l10_conc_100ml: column name of .data containing l10 concentration per
+# -- 100 ml; maybe already exist in .data or not
+# - .l10_conc: l10 concentration in qpcr reaction
+# Returns:
+# - The data frame .data with the column .l10_conc_100ml filled in for qpcr
+# -- method and also with .l10_conc column removed, since we are no longer 
+# -- interested in the qpcr reaction concentrations.
+calc_qpcr_water <- function(.data, .l10_conc_100ml, .l10_conc) {
+  # Tidy evaluation
+  .l10_conc_100ml <- enquo(.l10_conc_100ml)
+  .l10_conc_100ml_name <- quo_name(.l10_conc_100ml)
+  .l10_conc <- enquo(.l10_conc)
+  
+  # (cn/ml water) = 
+  #   (cn/rxn)*(1 rxn/5 ul extract)*(100 ul extract/1 extraction)*
+  #   (1 extraction/X ml water filtered)
+  # (cn/100 ml water) = (cn/ml water)*100
+  
+  vol_extract <- 100  # 100 ul nucleic acid extract
+  vol_extract_qpcr <- 5  # 5 ul nucleic acid used as template in qpcr rxns
+  # .l10_conc is concentration in cn/rxn = cn/5 ul extract
+  
+  .data %>%
+    mutate(
+      !!.l10_conc_100ml_name := NA,  # Initialize column
+      !!.l10_conc_100ml_name := ifelse(
+        method == "qpcr",
+        log10(
+          (10^!!.l10_conc)*(vol_extract/vol_extract_qpcr)*(100/vol_mce)),
+        !!.l10_conc_100ml)) %>%
+    select(-!!.l10_conc)
+}
+
 
 # Write a .tif image to file.
 # Given:
