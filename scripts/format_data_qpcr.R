@@ -58,6 +58,9 @@ qpcr$name <- gsub(" 1:10", "", qpcr$name)
 qpcr$name <- gsub("1:10 ", "", qpcr$name)
 qpcr$name <- gsub(" :10", "", qpcr$name)
 
+# Add method indicator column to distinguish qpcr from IDEXX culture samples.
+qpcr$method <- "qpcr"
+
 
 # Discard standards and samples that will not be used ---------------------
 

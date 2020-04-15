@@ -77,8 +77,11 @@ lab <-
                        ifelse(cens == "no", "ncen", "aloq"))) %>%
   select(-turb)
 
-# Remove observations where no samples was taken
+# Remove observations where no sample was taken.
 lab <- lab %>% filter(!grepl("NO SAMPLE", sample_name))
+
+# Add method indicator column to distinguish IDEXX culture from qpcr samples.
+lab$method <- "IDEXX"
 
 # Write formatted data
 saveRDS(lab, here::here("data", "processed", "lab.rds"))
