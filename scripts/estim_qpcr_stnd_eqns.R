@@ -6,10 +6,8 @@
 
 # Description: Use several approaches to estimate qPCR standard equations.
 
-# Notes: Given cleaned qPCR data, will estimate equations using master
-# calibration (pooling across plates), plate-specific (separate equation for 
-# each plate), and mixed model approach (one equation with random effects for 
-# each plate).
+# Notes: Given cleaned qPCR data, will estimate equations using a mixed model 
+# approach (one equation with random effects for each plate).
 
 
 # Dependencies ------------------------------------------------------------
@@ -17,11 +15,15 @@
 required_packages <- c("dplyr", "ggplot2", "here", "lme4", "readr")
 lapply(required_packages, library, character.only = T)
 source(here::here("scripts", "util.R"))
-standards <- readRDS(here::here("data", "processed", "standards.rds"))
-samples <- readRDS(here::here("data", "processed", "samples.rds"))
+
+# Processed data
+qpcr <- readRDS(here::here("data", "processed", "qpcr.rds"))
 
 
 # Estimate standard equations ---------------------------------------------
+
+# Split out standards.
+standards <- qpcr %>% filter(task == "STANDARD")
 
 # Estimate mixed standard model (assuming random intercept).
 standards_mixed <- estim_std_mix(standards)

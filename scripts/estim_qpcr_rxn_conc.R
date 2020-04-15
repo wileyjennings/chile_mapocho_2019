@@ -1,6 +1,23 @@
+# Doc Info ----------------------------------------------------------------
+
+# Project: Mapocho River, Chile water quality survey
+# Author: Wiley Jennings | Boehm Group | Stanford 
+# Date: 2 Dec 2019
+
+# Description: Estimate qPCR reaction concentrations, LOD and LLOQ, and 
+# check for inhibition.
+
+# Notes: Given cleaned qPCR data, standard equations and standard equation
+# summaries, writes .rds of estimated sample qpcr rxn concentrations and a
+# .csv inhibition summary.
+
+
+# Dependencies ------------------------------------------------------------
 
 required_packages <- c("dplyr", "here", "readr", "tidyr")
 lapply(required_packages, library, character.only = T)
+
+# Processed data
 qpcr <- readRDS(here::here("data", "processed","qpcr.rds"))
 standards_summary <- readRDS(
   here::here("data", "processed", "standards_mixed_summary.rds"))
