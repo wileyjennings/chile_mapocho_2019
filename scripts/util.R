@@ -180,10 +180,10 @@ lloq_logit <- function(.data, .target, .prob) {
 # Calculate microbial concentration per 100 ml water from qPCR rxn 
 # concentrations
 # Given:
-# - .data: data frame (`water`) containing qpcr rxn concentrations and lab processing
-# -- values ...
+# - .data: data frame (`water`) containing qpcr rxn concentrations and lab 
+# -- processing values ...
 # - .l10_conc_100ml: column name of .data containing l10 concentration per
-# -- 100 ml; maybe already exist in .data or not
+# -- 100 ml; must already exist in .data.
 # - .l10_conc: l10 concentration in qpcr reaction
 # Returns:
 # - The data frame .data with the column .l10_conc_100ml filled in for qpcr
@@ -206,7 +206,6 @@ calc_qpcr_water <- function(.data, .l10_conc_100ml, .l10_conc) {
   
   .data %>%
     mutate(
-      !!.l10_conc_100ml_name := NA,  # Initialize column
       !!.l10_conc_100ml_name := ifelse(
         method == "qpcr",
         log10(
@@ -225,8 +224,17 @@ calc_qpcr_water <- function(.data, .l10_conc_100ml, .l10_conc) {
 # Side effect:
 # - Writes a high res .tif file to figures/
 
-write_tif_wide <- function(.fig, .file_name) {
-  tiff(here::here("figures", .file_name), width = 6, height = 4, 
+write_tif_wide <- function(.fig, .file_name, orient = "horiz") {
+  if(!(orient %in% c("horiz", "vert"))) {
+    stop("`orient` must be `horiz` or `vert`")}
+  if(orient == "horiz") {
+    .width = 6
+    .height = 4
+  } else {
+    .width = 4
+    .height = 6
+  }
+  tiff(here::here("figures", .file_name), width = .width, height = .height, 
        units = "in", res = 600)
   print(.fig)
   dev.off()
