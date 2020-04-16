@@ -215,6 +215,8 @@ calc_qpcr_water <- function(.data, .l10_conc_100ml, .l10_conc) {
 }
 
 
+# Plotting functions ------------------------------------------------------
+
 # Write a .tif image to file.
 # Given:
 # - .fig: A plot object
@@ -223,11 +225,10 @@ calc_qpcr_water <- function(.data, .l10_conc_100ml, .l10_conc) {
 # - Nothing.
 # Side effect:
 # - Writes a high res .tif file to figures/
-
-write_tif_wide <- function(.fig, .file_name, orient = "horiz") {
-  if(!(orient %in% c("horiz", "vert"))) {
+write_tif <- function(.fig, .file_name, .orient = "horiz") {
+  if(!(.orient %in% c("horiz", "vert"))) {
     stop("`orient` must be `horiz` or `vert`")}
-  if(orient == "horiz") {
+  if(.orient == "horiz") {
     .width = 6
     .height = 4
   } else {
@@ -240,4 +241,28 @@ write_tif_wide <- function(.fig, .file_name, orient = "horiz") {
   dev.off()
 }
 
+# Plot facetted environmental vars
+# Given: a ggobj with defined x and y aesthetics, as well as
+# geometries (e.g., geom_point)
+# Returns: a ggobj prettied up, including colors, text size,
+# and desired facet format.
+facet_env <- function(.ggobj, .nrow, .num_targ) {
+  color_order <- c(1, 4, 2, 3, 5)[1:.num_targ]
+  .ggobj +
+    facet_wrap(~meas_class, nrow = .nrow, scales = "free_y", 
+               strip.position = "left") +
+    scale_color_manual(values = viridis::viridis_pal(
+      end = 0.90, option = "C")(5)[color_order]) +
+    guides(color = guide_legend(
+      title = "", label.hjust = 0.1, keywidth = unit(0.01, "cm"))) +
+    labs(x = NULL, y = NULL) +
+    theme(legend.position = c(1.11, 0.7),
+          strip.background = element_blank(),
+          strip.placement = "outside",
+          panel.grid.minor = element_blank(),
+          plot.margin = unit(c(0.3, 2, 0, 0), "cm"),
+          axis.text.y = element_text(size = 11),
+          axis.text.x = element_text(size = 9),
+          legend.text = element_text(size = 8))
+}
 
