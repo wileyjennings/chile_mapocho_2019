@@ -215,7 +215,7 @@ calc_qpcr_water <- function(.data, .l10_conc_100ml, .l10_conc) {
 }
 
 
-# Plotting functions ------------------------------------------------------
+# Plotting & writing functions ------------------------------------------------
 
 # Write a .tif image to file.
 # Given:
@@ -266,3 +266,8 @@ facet_env <- function(.ggobj, .nrow, .num_targ) {
           legend.text = element_text(size = 8))
 }
 
+# Write a table to .csv file, using the name of the object as the file name.
+write_result <- function(.obj) {
+  .obj_name <- quo_name(enquo(.obj))
+  write_csv(.obj, here::here("results", paste0(.obj_name, ".csv")))
+}
