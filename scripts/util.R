@@ -214,6 +214,19 @@ calc_qpcr_water <- function(.data, .l10_conc_100ml, .l10_conc) {
     select(-!!.l10_conc)
 }
 
+# Format model residuals as time series.
+# Given .data containing a list column of models, a .target column, and a list
+# col of .resids residuals
+# Returns a vector of time series formatted residuals.
+ts_resids <- function(.data, .target, .resids) {
+  .resids <- enquo(.resids)
+  .data %>% 
+    filter(target == .target) %>% 
+    pull(!!.resids) %>% 
+    unlist(.) %>%
+    ts(.)
+}
+
 
 # Plotting & writing functions ------------------------------------------------
 
