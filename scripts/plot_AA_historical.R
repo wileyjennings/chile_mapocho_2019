@@ -10,9 +10,9 @@
 
 # Dependencies ------------------------------------------------------------
 
-requiredPackages <- c("dplyr", "ggplot2", "here", "lubridate", "purrr", "readr",
+required_packages <- c("dplyr", "ggplot2", "here", "lubridate", "purrr", "readr",
                       "readxl", "tidyr", "viridisLite")
-lapply(requiredPackages, library, character.only = T)
+lapply(required_packages, library, character.only = T)
 source(here::here("scripts", "util.R"))
 
 # Processed data
