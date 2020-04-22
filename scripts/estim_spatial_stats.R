@@ -12,7 +12,7 @@
 # Dependencies ------------------------------------------------------------
 
 required_packages <- c("astsa", "broom", "car", "dplyr", "geepack", "here", 
-                       "lubridate", "olsrr", "readr")
+                       "lubridate", "readr")
 lapply(required_packages, library, character.only = T)
 source(here::here("scripts", "util.R"))
 
