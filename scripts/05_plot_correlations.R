@@ -45,6 +45,7 @@ plot_cor_noro <-
   pivot_longer(., cols = c(ec:crass), names_to = "indicator", 
                values_to = "indicator_conc") %>%
   mutate(indicator = fct_relevel(indicator, c("crass", "hf183", "ec", "ent"))) %>%
+  filter(!is.na(noro)) %>%
   ggplot(., aes(x = noro, y = indicator_conc, color = location)) +
   facet_wrap(~indicator) +
   geom_point() +
@@ -54,6 +55,7 @@ plot_cor_noro <-
 
 plot_cors_matrix <- 
   water_wide %>%
+  filter(complete.cases(.)) %>%
   ggpairs(., columns = c(2:3, 5:8))
 
 
