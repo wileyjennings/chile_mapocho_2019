@@ -140,8 +140,10 @@ gee_crass_hf <-
          std.err = "san.se")
 
 # Inspect residual of GEE model
-plot_gee_resids <- recordPlot(plot(gee_crass_hf$residuals, type = "b"))
-plot_gee_autocor <- recordPlot(acf2(gee_crass_hf$residuals))  # No autocorrelation issues! 
+if(interactive()) {
+  plot(gee_crass_hf$residuals, type = "b")
+  acf2(gee_crass_hf$residuals)  # No autocorrelation issues! 
+}
 gee_coefs <- summary(gee_crass_hf)$coefficients
 # Summarize correlation.
 crass_hf_cor = tibble(
@@ -162,7 +164,3 @@ location_kruskal <-
 write_result(location_levene)
 write_result(location_kruskal)
 write_result(crass_hf_cor)
-
-write_tif(plot_gee_resids, "gee_resids.tif")
-write_tif(plot_gee_autocor, "gee_autocor.tif")
-
