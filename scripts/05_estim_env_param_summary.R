@@ -10,8 +10,8 @@
 
 # Requirements ------------------------------------------------------------
 
-requiredPackages <- c( "here", "dplyr", "readr")
-lapply(requiredPackages, library, character.only = T)
+required_packages <- c( "here", "dplyr", "readr")
+lapply(required_packages, library, character.only = T)
 
 # Processed data
 water <- readRDS(here::here("data", "processed", "water.rds"))
