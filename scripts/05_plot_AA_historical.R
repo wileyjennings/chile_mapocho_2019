@@ -96,7 +96,8 @@ plot_hist_data_station <-
   aa %>%
   filter(station %in% c("Pte Suecia", "Pte La Dehesa", "Pte Lo Curro", 
                         "Pte Bulnes/Panamericana", "Farfana aguas abajo", 
-                        "Rinconada de Maipu")) %>%
+                        "Rinconada de Maipu"), 
+         !is.na(l10_fc)) %>%
   ggplot(., aes(x = date, y = l10_fc, color = station)) +
   geom_point() +
   geom_smooth(method = "lm", formula = "y ~ x", se = F) +
@@ -107,7 +108,8 @@ plot_hist_data <-
   aa %>%
   filter(station %in% c("Pte Suecia", "Pte La Dehesa", "Pte Lo Curro", 
                         "Pte Bulnes/Panamericana", "Farfana aguas abajo", 
-                        "Rinconada de Maipu")) %>%
+                        "Rinconada de Maipu"), 
+         !is.na(l10_fc)) %>%
   ggplot(., aes(x = date, y = l10_fc)) +
   geom_point(color = viridis::viridis(1, begin = 0.2, end = 0.2)) +
   geom_smooth(method = "lm", formula = "y ~ x", se = F,
@@ -127,7 +129,8 @@ plot_hist_and_our_data <-
       select(Station = station, date, l10_val = l10_fc) %>% 
       filter(Station %in% c("Pte Suecia", "Pte La Dehesa", 
                             "Pte Bulnes/Panamericana", "Farfana aguas abajo", 
-                            "Rinconada de Maipu")) %>%
+                            "Rinconada de Maipu"), 
+             !is.na(l10_val)) %>%
       mutate(Station = "Historical")) %>%
   ggplot(., aes(x = date, y = l10_val, color = Station)) +
   geom_point() +
@@ -140,7 +143,8 @@ plot_hist_and_our_data <-
 plot_AA_monthly_trends <- 
   aa %>%
   filter(station %in% c("Pte Suecia", "Pte La Dehesa", "Pte Bulnes/Panamericana", 
-                        "Farfana aguas abajo", "Rinconada de Maipu")) %>% 
+                        "Farfana aguas abajo", "Rinconada de Maipu"), 
+         !is.na(l10_fc)) %>% 
   ggplot(., aes(x = month, y = l10_fc)) +
   geom_point() +
   facet_wrap(~year) +
@@ -154,7 +158,8 @@ plot_monthly_trend_2016to18 <-
   aa %>%
   filter(station %in% c("Pte Suecia", "Pte La Dehesa", "Pte Bulnes/Panamericana", 
                         "Farfana aguas abajo", "Rinconada de Maipu"),
-         year %in% c(2016, 2017, 2018)) %>% 
+         year %in% c(2016, 2017, 2018), 
+         !is.na(l10_fc)) %>% 
   ggplot(., aes(x = as.numeric(month), y = l10_fc)) +
   geom_point() +
   geom_smooth(method = 'loess', formula = 'y ~ x') +
@@ -193,3 +198,4 @@ write_tif(plot_hist_data, "AA_hist_only.tif")
 write_tif(plot_hist_and_our_data, "AA_hist_our_data.tif")
 write_tif(plot_AA_monthly_trends, "AA_hist_monthly.tif")
 write_tif(plot_monthly_trend_2016to18, "AA_hist_monthly_trend_2016to18.tif")
+
