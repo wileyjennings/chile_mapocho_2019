@@ -64,5 +64,5 @@ standards_plot <-
 saveRDS(standards_mixed_summary, 
         here::here("data", "processed", "standards_mixed_summary.rds"))
 saveRDS(standards_mixed, here::here("data", "processed", "standards_mixed.rds"))
-write_csv(standards_mixed_summary, here::here("figures", "standards_summary.csv"))
+write_csv(standards_mixed_summary, here::here("results", "standards_summary.csv"))
 write_tif(standards_plot, "standards.tif")
