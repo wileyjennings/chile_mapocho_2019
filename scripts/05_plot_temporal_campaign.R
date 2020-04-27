@@ -52,7 +52,7 @@ water_meas_class <-
 water_meas_class_mean <- 
   water_meas_class %>%
   filter(campaign == "temporal") %>%  # only makes sense for temporal campaign
-  group_by(datet, target, meas_class) %>%
+  group_by(datet, time, target, meas_class) %>%
   summarize(val_mean = mean(value, na.rm = T),
             val_n = n(),
             val_sd = sd(value, na.rm = T),
@@ -90,18 +90,16 @@ plot_temp_mean_env <-
   geom_errorbar(data = filter(water_meas_class_mean, 
                               meas_class == "Organism",
                               target != "noro"), 
-                aes(color = target,
-                    ymin = val_mean - val_se, ymax = val_mean + val_se),
+                aes(color = target, ymin = val_mean - val_se, 
+                    ymax = val_mean + val_se),
                 width = 10000) +
-  geom_point(data = filter(water_meas_class_mean, 
-                           meas_class == "Turbidity"), 
-             aes(color = target), color = "gray25") +
   geom_errorbar(data = filter(water_meas_class_mean,
                               meas_class == "Turbidity"),
                 aes(ymin = val_mean - val_se, ymax = val_mean + val_se),
-                color = "gray25") +
-  geom_col(data = filter(water_meas_class_mean, 
-                         meas_class == "Precipitation"),
+                color = "gray25", width = 10000) +
+  geom_point(data = filter(water_meas_class_mean, meas_class == "Turbidity"), 
+             aes(fill = time), shape = 21) +
+  geom_col(data = filter(water_meas_class_mean, meas_class == "Precipitation"),
            position = "dodge", fill = "gray25") 
 # Pretty it up!
 plot_temp_mean_env <- 

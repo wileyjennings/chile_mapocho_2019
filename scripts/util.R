@@ -260,14 +260,18 @@ write_tif <- function(.fig, .file_name, .orient = "horiz") {
 # Returns: a ggobj prettied up, including colors, text size,
 # and desired facet format.
 facet_env <- function(.ggobj, .nrow, .num_targ) {
-  color_order <- c(1, 4, 2, 3, 5)[1:.num_targ]
+  color_order <- c(1, 4, 2, 3, 5, 6)[1:.num_targ]
   .ggobj +
     facet_wrap(~meas_class, nrow = .nrow, scales = "free_y", 
                strip.position = "left") +
     scale_color_manual(values = viridis::viridis_pal(
-      end = 0.90, option = "C")(5)[color_order]) +
-    guides(color = guide_legend(
-      title = "", label.hjust = 0.1, keywidth = unit(0.01, "cm"))) +
+      end = 0.90, option = "C")(.num_targ)[color_order]) +
+    scale_fill_manual(values = c("gray100", "gray 25")) +
+    guides(
+      color = guide_legend(title = "", label.hjust = 0.1, 
+                           keywidth = unit(0.01, "cm")),
+      fill = guide_legend(
+        title = "", label.hjust = 0.1, keywidth = unit(0.01, "cm"))) +
     labs(x = NULL, y = NULL) +
     theme(legend.position = c(1.11, 0.7),
           strip.background = element_blank(),
