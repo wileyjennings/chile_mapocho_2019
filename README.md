@@ -8,8 +8,6 @@ This repository is structured as a full reproducible R project. It contains the 
 
  Scripts can be run individually, in interactive mode or from command line (scripts are written such that they do not require any input arguments). In this case, they should be run in order, from scripts starting `01` to `05`.
 
-To reproduce the entire analysis immediately, scripts can also be run using the main file, which allows all formatting scripts to be run with one command, and then analysis scripts to be run with another, or for all scripts to be run in order. Simply fork the repository, and then from command line in the project directory, type
-  Rscript scripts/main.R
-which will prompt an error providing proper usage.
+To reproduce the entire analysis or groups of scripts with a single command, execute the `Makefile`. To reproduce all analyses, at the command line simply type `make`. To execute the subset of scripts that formats all data but does not produce statistical analysis or plots, type `make format`. To remove all files produced from running these scripts, type `make clean`. Other clean rules are also written in `Makefile`.
 
-Dependencies are managed with packrat, so that packages do not need to be installed, and the proper package version is included in the repo. 
+Dependencies are managed with packrat, so that required package versions are included in this repo.
