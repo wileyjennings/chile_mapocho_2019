@@ -41,14 +41,13 @@ samples <-
   mutate(plate_name = as.character(plate_name)) %>%
   left_join(samples, ., by = c("plate_name", "target"))
 
-# Compute mean replicate ct values and compute SDs of unknowns. 
-# Discard SDs computed by Step One Plus software.
-# Discard replicates now that computed summary values using `distinct()`.
-samples <- 
+# Compute mean replicate ct values for inhibition checking. 
+samples <-
   samples %>%
   group_by(plate_name, target, name, diln) %>%
   summarize(ct_mean = mean(ct, na.rm = T)) %>%
-  left_join(samples, ., by = c("plate_name", "target", "name", "diln")) 
+  left_join(samples, ., by = c("plate_name", "target", "name", "diln"))
+
 
 # Estimate concentrations from plate-specific calibration equations.
 samples <- 
@@ -89,16 +88,11 @@ samples <- samples %>% filter(diln == 1)
 # Add indicator columns for LOD and LOQ.
 samples <- 
   samples %>%
-  mutate(cens = ifelse(
-    l10_cn < lod_l10 | is.na(l10_cn), "blod", ifelse(
-      l10_cn < loq_l10, "bloq", "ncen")))
-
-# Add censored concentrations, with value at censoring limit, which is useful
-# for plotting though not statistics.
-samples <- 
-  samples %>%
-  mutate(l10_cn_cens = ifelse(cens == "blod", lod_l10, ifelse(
-             cens == "bloq", loq_l10, l10_cn)))
+  mutate(
+    cens = ifelse(
+      l10_cn < lod_l10 | is.na(l10_cn) | ct_mean >= 40, "blod", ifelse(
+        l10_cn < loq_l10, "bloq", "ncen")),
+    detect = ifelse(is.na(l10_cn) | ct_mean >= 40, "ndet", "det"))
 
 # Write results and processed data.
 saveRDS(samples, here::here("data", "processed", "samples.rds"))
