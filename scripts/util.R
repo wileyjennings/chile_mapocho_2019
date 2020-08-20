@@ -88,7 +88,7 @@ tidy_model <- function(.data, .model_col) {
 # -- `target`, `ct`, `copy_num`, and `plate_name`.
 # Returns:
 # - A tibble containing a list column of random effects models, one model
-# -- for each qPCR target, a list col of random effects, and list cols of 
+# -- for each qPCR target; a list col of random effects; and list cols of 
 # -- nicely tidied model results.
 
 estim_std_mix <- function(.data) {
@@ -128,7 +128,7 @@ estim_std_mix <- function(.data) {
 
 # Summarize standard equation parameters.
 # Given:
-# - A tibble containing a column of tidied models (e.g., from `tidy_mode()`)
+# - A tibble containing a column of tidied models (e.g., from `tidy_model()`)
 # Returns:
 # - A tibble containing important standard equation parameters.
 summarize_std <- function(.data) {
@@ -143,21 +143,24 @@ summarize_std <- function(.data) {
                 values_from = c(estimate))
   names(std_summary) <- c("target", "intercept", "slope_l10cn","intercept_sd", 
                           "resid_sd")
-  # Return summary with qPCR efficiency col
+  # Return summary with qPCR efficiency col and conditional R2
   std_summary %>%
-    mutate(effic = 10^(-1/slope_l10cn) - 1)
+    mutate(
+      effic = 10^(-1/slope_l10cn) - 1,
+      r2_cond = map(standards_mixed$mixed, performance::r2),
+      r2_cond = sapply(r2_cond, "[[", 1))
 }
 
-# Estimate lower limit of quantification using logistic regression to estimate
+# Estimate lower limit of detection using logistic regression to estimate
 # the standard concentration that amplified with probability `.prob`
 # Given:
 # - .data: data frame of standards
 # - .target: the qPCR target, a string
-# - .prob: numeric [0, 1], the lloq corresponds to the lowest copy num with at 
+# - .prob: numeric [0, 1], the lod corresponds to the lowest copy num with at 
 # -- least .prob probability of amplifying.
 # Returns:
-# - Numeric LLOQ, in units of log10(copy number)
-lloq_logit <- function(.data, .target, .prob) {
+# - Numeric LOD, in units of log10(copy number)
+lod_logit <- function(.data, .target, .prob) {
   # Add presence absence col
   .data <- 
     .data %>%
@@ -171,11 +174,114 @@ lloq_logit <- function(.data, .target, .prob) {
   grid <- tibble(cn = c(1:1000), l10_cn = log10(cn))
   grid$pred <- predict(logist_mod, newdata = grid, type = "response")
   
-  # Return lloq in units of copy number
+  # Return lod in units of copy number
   grid %>%
     filter(abs(.prob - pred) == min(abs(.prob - pred))) %>%
     pull(l10_cn)
 }
+
+# Estimate coefficient of variation for log-transformed qPCR data,
+# derived by Forootan 2017
+# Given:
+# - ct_sd: a vector of Ct standard deviations
+# - eff: the qpcr efficiency
+# Returns:
+# - a vector of coefficient of variations with same length as ct_sd
+cv_qpcr <- function(ct_sd, eff = 1) {
+  power <- ct_sd^2 * log(1+eff)
+  sqrt((1 + eff)^power - 1)
+}
+
+# Estimate lower limit of quantification, namely the lowest concentration that 
+# can be precisely quantified, based on the coefficient of variation.
+# Pooled standard deviation across plates is used in the CV calculation;
+# CV calculation is based on Cq's (see function: cv_qpcr)
+# Given:
+# - .data: data frame of standards
+# - .target: the qPCR target, a string
+# - .eff: the qpcr efficiency for that target, a number
+# Returns:
+# - a list containing 3 elms: 
+# -- 1. data frame containing the stnd copy_num, name, and CV
+# -- 2. Predicted CV as a function of log10 copy num, interpolated using spline
+# -- 3. A plot object to plot CV as function of copy_num, with smooth line
+lloq_pool <- function(.data, .target, .eff) {
+  data <- 
+    .data %>% 
+    filter(target == .target, !is.na(ct))  # removes wells that did not amplify
+  
+  # Count the number of standards run at each conc on each plate for pooled sd
+  # estimation
+  count_std <- 
+    data %>%
+    count(plate_name, copy_num)
+  
+  # Compute sd for each plate
+  sd_plate <- 
+    data %>%
+    group_by(copy_num, plate_name) %>%
+    summarize(sd = sd(ct)) %>%
+    left_join(., count_std, by = c("plate_name", "copy_num"))
+  
+  # Compute pooled sd across plates and use that for CV calculation
+  cv <- 
+    sd_plate %>%
+    filter(!is.na(sd)) %>%
+    mutate(sd_n = sd*n) %>%
+    group_by(copy_num) %>%
+    summarize(sd_n_sum = sum(sd_n),
+              n_sum = sum(n),
+              sd_pool = sd_n_sum / n_sum) %>%
+    mutate(cv = cv_qpcr(ct_sd = sd_pool, eff = .eff)) %>%
+    select(copy_num, cv) %>%
+    mutate(target = .target)
+  
+  # Interpolate CV using spline fit over grid of log10 copy_num values
+  spline_fit <- smooth.spline(
+    x = log10(cv$copy_num), y = cv$cv, spar = 0.3)
+  spline_pred <- 
+    predict(spline_fit, 
+            x = seq(min(log10(cv$copy_num)),
+                    max(log10(cv$copy_num)), 
+                    0.1)) %>%
+    as_tibble()
+  names(spline_pred) <- c("copy_num_l10", "cv_spline_fit")
+  
+  # Compute derivative of spline fit for LOQ determination
+  spline_pred$deriv <- 
+    predict(spline_fit,
+            x = seq(min(log10(cv$copy_num)),
+                    max(log10(cv$copy_num)), 
+                    0.1),
+            deriv = 1)$y
+  
+  # Plot CV against copy_num, with smoothing spline
+  loq_plot <- 
+    cv %>%
+    ggplot(., aes(x = log10(copy_num), y = cv)) +
+    geom_point() +
+    geom_line(data = spline_pred, aes(x = copy_num_l10, y = cv_spline_fit)) +
+    geom_hline(aes(yintercept = 0.35), lty = 2, color = "red") +
+    labs(x = "Copy number per rxn, log10", 
+         y = "Coefficient of variation",
+         title = .target) +
+    theme_bw()
+  
+  # LOQ is the lowest concentration with a CV < 0.35 and a negative slope
+  loq_l10 <- 
+    spline_pred %>%
+    filter(cv_spline_fit < 0.35, deriv < 0) %>%
+    summarize(loq_l10 = min(copy_num_l10)) %>%
+    pull(loq_l10)
+  
+  # Return a list of these outputs
+  list(
+    cv = cv,
+    spline_pred = spline_pred,
+    loq_plot = loq_plot,
+    loq_l10 = loq_l10)
+}
+
 
 # Calculate microbial concentration per 100 ml water from qPCR rxn 
 # concentrations
