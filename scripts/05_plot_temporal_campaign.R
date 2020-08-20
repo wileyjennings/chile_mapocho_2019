@@ -17,11 +17,6 @@ source(here::here("scripts", "util.R"))
 # Processed data
 water <- readRDS(here::here("data", "processed", "water.rds"))
 
-##############################################################################
-# Note: Censoring limits used (i.e., not LOD-1) for plotting purposes
-##############################################################################
-print("Censoring limits used (i.e., not LOD-1) for plotting purposes.")
-
 
 # Global settings ---------------------------------------------------------
 
