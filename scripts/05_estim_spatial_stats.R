@@ -22,19 +22,6 @@ water <- readRDS(here::here("data", "processed", "water.rds"))
 
 # Construct data frame for statistics -------------------------------------
 
-##############################################################################
-# Note: Censoring limits -1 (e.g., LOD-1) used for stats
-##############################################################################
-
-water <- 
-  water %>%
-  mutate(l10_100ml_cens = case_when(
-    is.na(cens) ~ NA_real_,
-    cens == "blod" ~ log10(10^l10_100ml_lod - 1),
-    cens == "bloq" ~ log10(10^l10_100ml_loq - 1),
-    cens == "aloq" ~ log10(10^l10_100ml_cens + 1),
-    cens == "ncen" ~ l10_100ml_cens))
-
 water_wide <- 
   water %>%
   filter(campaign %in% c("hourly", "spatial", "temporal")) %>%
@@ -66,6 +53,15 @@ temporal_sample_days <-
   pull()
 print(glue("Temporal sampling performed on {temporal_sample_days} days."))
 
+# Number of samples in which target not detected for each target.
+summary_detect <- 
+  water %>%
+  filter(campaign %in% c("spatial", "temporal", "hourly")) %>%
+  group_by(target) %>%
+  count(detect) %>%
+  mutate(total = sum(n),
+         frac_det = n/total)
+
 # Number of field values censored for each target.
 summary_cens <- 
   water %>%
@@ -75,16 +71,37 @@ summary_cens <-
   mutate(total = sum(n),
          frac_cens = n/total)
 
-# Median, min, max and noro positive at each station.
+# Median, 25th, 25th percentile across all data
 summary_stats <- 
   water %>%
+  filter(campaign %in% c("spatial", "temporal", "hourly")) %>%
+  group_by(target) %>%
+  summarize(med = quantile(l10_100ml_cens, probs = 0.5),
+            `25th` = quantile(l10_100ml_cens, probs = 0.25),
+            `75th` = quantile(l10_100ml_cens, probs = 0.75))
+
+# Median, min, max and noro positive at each station.
+summary_stats_loc <-
+  water %>%
   filter(campaign %in% c("spatial", "temporal")) %>%
-  group_by(target, location) %>%
+  mutate(location_group = 
+           ifelse(location %in% c("S1", "S2"), "upstream", ifelse(
+             location %in% c("S3", "S4"), "midstream", ifelse(
+               location %in% c("S5", "S6"), "downstream", ifelse(
+                 location %in% c("T1", "T2"), "temporal", NA))))) %>%
+  group_by(target, location_group) %>%
   summarize(med = median(l10_100ml_cens, na.rm=T),
             min_conc = min(l10_100ml_cens),
             max_conc = max(l10_100ml_cens),
-            noro_pos = sum(!near(l10_100ml_cens, log10(60))),
             n = n())
+
+# Count samples in which noro was detected by location
+noro_det_loc <- 
+  water %>%
+  filter(campaign %in% c("spatial", "temporal"),
+         target == "noro") %>%
+  group_by(location) %>%
+  count(detect, name = "detect_noro")
 
 
 # Examine spatial structure in data ---------------------------------------
@@ -123,7 +140,8 @@ cor_noro <-
     cor_noro = map(
       data, ~cor.test(.x$target_val, .x$noro, method = "kendall")),
     tidied = map(cor_noro, tidy)) %>%
-  unnest(tidied)
+  unnest(tidied) %>%
+  select(-c(data, cor_noro))
 
 # Correlation between HF183 and crassphage across all field samples, accounting
 # for spatial clustering (note: low % censored values allows parametric 
@@ -155,12 +173,16 @@ crass_hf_cor = tibble(
 
 # Write results -----------------------------------------------------------
 
+write_result(summary_detect)
 write_result(summary_cens)
 write_result(summary_stats)
+write_result(summary_stats_loc)
+write_result(noro_det_loc)
 location_levene <- 
   unnest(location_clustering, tidied_levene) %>% select(-tidied_kruskal)
 location_kruskal <- 
   unnest(location_clustering, tidied_kruskal) %>% select(-tidied_levene)
 write_result(location_levene)
 write_result(location_kruskal)
+write_result(cor_noro)
 write_result(crass_hf_cor)
