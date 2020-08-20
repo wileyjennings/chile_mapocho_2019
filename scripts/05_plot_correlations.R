@@ -17,11 +17,6 @@ source(here::here("scripts", "util.R"))
 # Processed data
 water <- readRDS(here::here("data", "processed", "water.rds"))
 
-##############################################################################
-# Note: Censoring limits used (i.e., not LOD-1) for plotting purposes
-##############################################################################
-print("Censoring limits used (i.e., not LOD-1) for plotting purposes.")
-
 
 # Global settings ---------------------------------------------------------
 
@@ -44,14 +39,18 @@ plot_cor_noro <-
   filter(!is.na(location)) %>%
   pivot_longer(., cols = c(ec:crass), names_to = "indicator", 
                values_to = "indicator_conc") %>%
-  mutate(indicator = fct_relevel(indicator, c("crass", "hf183", "ec", "ent"))) %>%
+  mutate(indicator = fct_relevel(indicator, c("crass", "hf183", "ec", "ent")),
+         indicator = fct_recode(indicator, crAssphage = "crass", HF183 = "hf183", 
+                             `E. coli` = "ec", Enterococci = "ent")) %>%
   filter(!is.na(noro)) %>%
-  ggplot(., aes(x = noro, y = indicator_conc, color = location)) +
+  ggplot(., aes(x = noro, y = indicator_conc)) +
   facet_wrap(~indicator) +
-  geom_point() +
-  geom_smooth(method = "lm", formula = 'y ~ x') +
+  geom_smooth(method = "lm", formula = 'y ~ x', color = "gray50") +
+  geom_point(aes(color = location)) +
+  scale_color_manual(values = viridis::viridis_pal(
+    end = 0.90, option = "C")(8)) +
   labs(x = "Norovirus concentration (log10)", 
-       y = "Indicator concentration (log10)")
+       y = "Fecal indicator concentration (log10)")
 
 plot_cors_matrix <- 
   water_wide %>%
