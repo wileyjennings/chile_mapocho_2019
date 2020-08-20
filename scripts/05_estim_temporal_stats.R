@@ -24,18 +24,6 @@ water <- readRDS(here::here("data", "processed", "water.rds"))
 
 # Construct data frame for statistics -------------------------------------
 
-##############################################################################
-# Note: Censoring limits -1 (e.g., LOD-1) used for stats
-##############################################################################
-water <- 
-  water %>%
-  mutate(l10_100ml_cens = case_when(
-    is.na(cens) ~ NA_real_,
-    cens == "blod" ~ log10(10^l10_100ml_lod - 1),
-    cens == "bloq" ~ log10(10^l10_100ml_loq - 1),
-    cens == "aloq" ~ log10(10^l10_100ml_cens + 1),
-    cens == "ncen" ~ l10_100ml_cens))
-
 # Data frame for serial correlation: average only sampling sites together
 water_site_mean <- 
   water %>%
