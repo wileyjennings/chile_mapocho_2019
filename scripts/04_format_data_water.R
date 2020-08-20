@@ -33,6 +33,11 @@ lab <-
   select(datet, prcp_24hr) %>%
   left_join(lab, ., by = "datet")  
 
+# Add detection indicator: Note for IDEXX, BLOD is same as not detected
+lab <- 
+  lab %>%
+  mutate(detect = ifelse(cens == "blod", "ndet", "det"))
+
 # Combine lab data and qpcr data to yield final analysis df `water`.
 # Challenges:
 # 1. samples$sample_id (called `name`) is a subset oflab$sample_id because 
@@ -50,10 +55,10 @@ lab <-
 water <- 
   bind_rows(samples %>% 
               select(sample_id = name, target, method, lod_l10, loq_l10, 
-                     cens, l10_cn_cens, l10_cn_sd),
+                     cens, detect, l10_cn, l10_cn_sd),
             lab %>% 
               select(sample_id, target, method, l10_100ml_lod = lod_l10, 
-                     l10_100ml_loq = loq_l10, cens, l10_100ml_cens, 
+                     l10_100ml_loq = loq_l10, cens, detect, l10_100ml_cens, 
                      l10_100ml_hi95, l10_100ml_lo95))
 
 # Second, left_join lab  to water to add other water quality and prcp data.
@@ -75,9 +80,24 @@ water <- water %>% mutate(weekday = wday(datet, label = T))
 # data does not change when adjusting concentrations for lab processing
 # variables. This is because multiplication on linear scale equals addition
 # on log scale, and addition of a constant does not affect sd.
-water <- calc_qpcr_water(water, l10_100ml_cens, l10_cn_cens)
+
+water <- calc_qpcr_water(water, l10_100ml_cens, l10_cn)
 water <- calc_qpcr_water(water, l10_100ml_lod, lod_l10)
 water <- calc_qpcr_water(water, l10_100ml_loq, loq_l10)
+
+
+##############################################################################
+# Note: Measured values retained even if BLOD; if no amplification detected,
+# 1/2 LOD assigned; IDEXX samples above upper limit of quantification assigned
+# upper limit of quantification
+##############################################################################
+
+water <-
+  water %>%
+  mutate(l10_100ml_cens = case_when(
+    is.na(cens) ~ NA_real_,
+    detect == "ndet" ~ 0.5*l10_100ml_lod,
+    detect == "det" ~ l10_100ml_cens))
 
 
 # Finish formatting combined df -------------------------------------------
@@ -129,3 +149,4 @@ sewage_conc <-
 saveRDS(water, here::here("data", "processed", "water.rds"))
 write_csv(num_field_samp, here::here("results", "num_field_samp.csv"))
 write_csv(sewage_conc, here::here("results", "sewage_conc.csv"))
+
